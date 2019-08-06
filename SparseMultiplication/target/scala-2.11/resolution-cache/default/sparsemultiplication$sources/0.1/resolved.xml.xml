@@ -4,7 +4,7 @@
 		module="sparsemultiplication$sources"
 		revision="0.1"
 		status="integration"
-		publication="20190806122646"
+		publication="20190806131627"
 	/>
 	<configurations>
 		<conf name="compile" visibility="public" description=""/>

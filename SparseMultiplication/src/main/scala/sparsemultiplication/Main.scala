@@ -8,10 +8,11 @@ object Main {
 
   class LeftMatrixPartitioner(override val numPartitions: Int) extends Partitioner {
     override def getPartition(key: Any): Int = {
-      print(s"Key$key")
       key match {
-        case  MatrixEntry(i, j, v) => j.hashCode()% numPartitions
-        case _ =>  key.hashCode()% numPartitions
+        case Long =>  key.hashCode()% numPartitions
+
+        //This should not happen as only the key of the RDDs are passed to the getPartition method
+        case  (j, (i, v)) => j.hashCode()% numPartitions
       }
     }
   }
@@ -19,8 +20,10 @@ object Main {
   class RightMatrixPartitioner(override val numPartitions: Int) extends Partitioner {
     override def getPartition(key: Any): Int =
       key match {
-        case MatrixEntry => key.asInstanceOf[MatrixEntry].i.hashCode()
-        case _ => 0
+        case Long => key.hashCode()% numPartitions
+
+        //This should not happen as only the key of the RDDs are passed to the getPartition method
+        case (j, (k, w)) => j.hashCode()% numPartitions
       }
   }
 
@@ -31,11 +34,11 @@ object Main {
 
     val sc = new SparkContext(conf)
 
-    val mat: CoordinateMatrix = getMatrix("Output.txt", sc)
-    val mat2: CoordinateMatrix = getMatrix("Output2.txt", sc)
+    val mat: CoordinateMatrix = getMatrix("Matrix1.txt", sc)
+    val mat2: CoordinateMatrix = getMatrix("Matrix2.txt", sc)
 
     val result: CoordinateMatrix = coordinateMatrixMultiply(mat, mat2)
-    result.entries.collect()
+    result.entries.collect().foreach(println)
   }
 
   def getMatrix(fileName:String, sc: SparkContext) : CoordinateMatrix = {
@@ -58,11 +61,11 @@ object Main {
     val N_ = rightMatrix.entries
       .map({ case MatrixEntry(j, k, w) => (j, (k, w)) })
 
-    val M_partitioned =  M_.partitionBy(new LeftMatrixPartitioner(2))
-    val N_partitioned = M_.partitionBy(new RightMatrixPartitioner(2))
+    //val M_partitioned =  M_.partitionBy(new LeftMatrixPartitioner(2))
+    //val N_partitioned = M_.partitionBy(new RightMatrixPartitioner(2))
 
-    val productEntries = M_partitioned
-      .join(N_partitioned)
+    val productEntries = M_
+      .join(N_)
       .map({ case (_, ((i, v), (k, w))) => ((i, k), (v * w)) })
       .reduceByKey(_ + _)
       .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
