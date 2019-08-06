@@ -9,10 +9,9 @@ object Main {
   class LeftMatrixPartitioner(override val numPartitions: Int) extends Partitioner {
     override def getPartition(key: Any): Int = {
       key match {
-        case Long =>  key.hashCode()% numPartitions
-
         //This should not happen as only the key of the RDDs are passed to the getPartition method
         case  (j, (i, v)) => j.hashCode()% numPartitions
+        case _ =>  key.hashCode()% numPartitions
       }
     }
   }
@@ -20,10 +19,9 @@ object Main {
   class RightMatrixPartitioner(override val numPartitions: Int) extends Partitioner {
     override def getPartition(key: Any): Int =
       key match {
-        case Long => key.hashCode()% numPartitions
-
         //This should not happen as only the key of the RDDs are passed to the getPartition method
         case (j, (k, w)) => j.hashCode()% numPartitions
+        case _ => key.hashCode()% numPartitions
       }
   }
 
@@ -61,11 +59,11 @@ object Main {
     val N_ = rightMatrix.entries
       .map({ case MatrixEntry(j, k, w) => (j, (k, w)) })
 
-    //val M_partitioned =  M_.partitionBy(new LeftMatrixPartitioner(2))
-    //val N_partitioned = M_.partitionBy(new RightMatrixPartitioner(2))
+    val M_partitioned =  M_.partitionBy(new LeftMatrixPartitioner(2))
+    val N_partitioned = N_.partitionBy(new RightMatrixPartitioner(2))
 
-    val productEntries = M_
-      .join(N_)
+    val productEntries = M_partitioned
+      .join(N_partitioned)
       .map({ case (_, ((i, v), (k, w))) => ((i, k), (v * w)) })
       .reduceByKey(_ + _)
       .map({ case ((i, k), sum) => MatrixEntry(i, k, sum) })
